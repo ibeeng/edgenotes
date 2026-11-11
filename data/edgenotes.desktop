@@ -1,0 +1,24 @@
+[Desktop Entry]
+Type=Application
+Name=EdgeNotes
+GenericName=Sticky Notes
+Comment=Catatan tempel yang menempel di pinggir layar
+Exec=edgenotes
+Icon=edgenotes
+Terminal=false
+Categories=Utility;GTK;
+Keywords=notes;sticky;catatan;memo;
+StartupNotify=false
+Actions=NewNote;AllNotes;Toggle;
+
+[Desktop Action NewNote]
+Name=Catatan baru
+Exec=edgenotes --new
+
+[Desktop Action AllNotes]
+Name=Semua catatan
+Exec=edgenotes --all
+
+[Desktop Action Toggle]
+Name=Buka/tutup catatan terakhir
+Exec=edgenotes --toggle
