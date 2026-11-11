@@ -1,6 +1,6 @@
 PREFIX ?= /usr/local
 
-.PHONY: install uninstall check
+.PHONY: install uninstall check deb
 
 install:
 	install -Dm755 edgenotes $(DESTDIR)$(PREFIX)/bin/edgenotes
@@ -17,3 +17,6 @@ uninstall:
 
 check:
 	python3 -m py_compile edgenotes && echo "OK"
+
+deb:
+	packaging/build-deb.sh

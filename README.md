@@ -5,14 +5,48 @@
 Sticky notes that live on the edge of your screen as tabs. Free software (GPLv3). No account, no cloud,
 no internet connection: your notes never leave your computer.
 
+<p align="center">
+  <img src="docs/img/demo.gif" alt="EdgeNotes demo: the strip fans out into tabs, a tab grows into a peek card, a click opens the note" width="760">
+</p>
+
+## Screenshots
+
+The thin pill at rest, the tabs fanned out, a peek card with the reminder, and a pinned checklist:
+
+![The strip at rest, fanned out, and two peek cards (light theme)](docs/img/strip-light.png)
+
+Light and dark themes follow your system:
+
+![The same strip in the dark theme](docs/img/strip-dark.png)
+
+| Note editor | Notes window | Settings |
+|---|---|---|
+| <img src="docs/img/editor-light.png" alt="Note editor" width="280"> | <img src="docs/img/notes-light.png" alt="Notes window" width="240"> | <img src="docs/img/settings-light.png" alt="Settings" width="240"> |
+
+<sub>All screenshots use the sample notes in [`docs/demo/notes.json`](docs/demo/notes.json) and are recorded in a
+virtual display by [`tools/capture-demo.sh`](tools/capture-demo.sh), so no real notes are ever shown.</sub>
+
 ## Install
+
+**Debian / Ubuntu / Linux Mint** — download `edgenotes_<version>_all.deb` from the
+[Releases](https://github.com/ibeeng/edgenotes/releases) page, then:
+
+```bash
+sudo apt install ./edgenotes_4.2.0_all.deb
+edgenotes --install-shortcuts    # optional: global shortcuts (GNOME and XFCE)
+edgenotes &
+```
+
+**From source (any distro)**
 
 ```bash
 git clone https://github.com/ibeeng/edgenotes && cd edgenotes
 sudo make install                # default PREFIX=/usr/local, or: make install PREFIX=/usr
-edgenotes --install-shortcuts    # optional: global shortcuts (GNOME/Ubuntu)
+edgenotes --install-shortcuts    # optional: global shortcuts (GNOME and XFCE)
 edgenotes &
 ```
+
+Build the `.deb` yourself with `packaging/build-deb.sh` (output in `dist/`).
 
 Requires `python3`, `python3-gi`, `python3-gi-cairo`, `python3-cairo`, `gir1.2-gtk-3.0`
 (Debian/Ubuntu/Mint: `sudo apt install python3-gi python3-gi-cairo python3-cairo gir1.2-gtk-3.0`).
@@ -33,7 +67,7 @@ Notes from older versions are picked up automatically. Remove with `sudo make un
   No cloud, no telemetry, no network code.
 - **Idle cost:** event-driven with no polling, 0% CPU when idle. Python + GTK keeps memory around 40 MB.
 
-## Shortcuts (GNOME/Ubuntu: `edgenotes --install-shortcuts`)
+## Shortcuts (GNOME and XFCE: `edgenotes --install-shortcuts`)
 
 | Shortcut | Action |
 |---|---|
@@ -43,7 +77,9 @@ Notes from older versions are picked up automatically. Remove with `sudo make un
 | `Super+Alt+X` | Archive the open note |
 | `Super+Alt+F` | Quick search |
 
-On KDE, XFCE and others, bind keys manually to `edgenotes --new`, `--all`, `--toggle`, `--archive`, `--search`.
+On XFCE the shortcuts are added to *Settings → Keyboard → Application Shortcuts* (your existing shortcuts are
+left untouched); `edgenotes --remove-shortcuts` takes them out again. On KDE and other desktops, bind keys
+manually to `edgenotes --new`, `--all`, `--toggle`, `--archive`, `--search`.
 
 ## Command line
 
