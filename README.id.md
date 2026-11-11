@@ -4,15 +4,47 @@
 
 Catatan tempel yang menempel di tepi layar sebagai tab. Perangkat lunak bebas (GPLv3). Tanpa akun, tanpa cloud, tanpa koneksi internet: isi catatan tidak pernah keluar dari laptopmu.
 
+<p align="center">
+  <img src="docs/img/demo.gif" alt="Demo EdgeNotes: strip mengembang jadi tab, tab tumbuh jadi kartu intip, klik membuka catatan" width="760">
+</p>
+
+## Tangkapan layar
+
+Pil tipis saat diam, tab mengembang, kartu intip dengan pengingat, dan checklist yang disematkan:
+
+![Strip saat diam, mengembang, dan dua kartu intip (tema terang)](docs/img/strip-light.png)
+
+Tema terang dan gelap mengikuti sistem:
+
+![Strip yang sama di tema gelap](docs/img/strip-dark.png)
+
+| Editor catatan | Jendela Notes | Pengaturan |
+|---|---|---|
+| <img src="docs/img/editor-light.png" alt="Editor catatan" width="280"> | <img src="docs/img/notes-light.png" alt="Jendela Notes" width="240"> | <img src="docs/img/settings-light.png" alt="Pengaturan" width="240"> |
+
+<sub>Semua tangkapan layar memakai catatan contoh di [`docs/demo/notes.json`](docs/demo/notes.json) dan direkam di
+layar virtual oleh [`tools/capture-demo.sh`](tools/capture-demo.sh), jadi catatan asli tidak pernah ikut tampil.</sub>
+
 ## Pasang
+
+**Debian / Ubuntu / Linux Mint** — unduh `edgenotes_<versi>_all.deb` dari halaman
+[Releases](https://github.com/ibeeng/edgenotes/releases), lalu:
+
+```bash
+sudo apt install ./edgenotes_4.2.0_all.deb
+edgenotes --install-shortcuts   # opsional: shortcut global (GNOME dan XFCE)
+edgenotes &
+```
 
 **Dari sumber (semua distro)**
 ```bash
 git clone https://github.com/ibeeng/edgenotes && cd edgenotes
 sudo make install            # PREFIX=/usr/local bawaan; ubah dengan PREFIX=/usr
-edgenotes --install-shortcuts   # opsional: shortcut global (GNOME/Ubuntu)
+edgenotes --install-shortcuts   # opsional: shortcut global (GNOME dan XFCE)
 edgenotes &
 ```
+
+Bangun `.deb` sendiri dengan `packaging/build-deb.sh` (hasilnya di `dist/`).
 Butuh: `python3`, `python3-gi`, `python3-gi-cairo`, `python3-cairo`, `gir1.2-gtk-3.0`
 (Debian/Ubuntu/Mint: `sudo apt install python3-gi python3-gi-cairo python3-cairo gir1.2-gtk-3.0`).
 
@@ -34,6 +66,11 @@ Atau cukup **beri bintang** repositori ini dan ceritakan ke temanmu.
 ## Baru di 4.2
 - **Open source (GPLv3).** Tanpa lisensi, tanpa masa coba, tanpa mode hanya-baca.
 - **Tanpa internet sama sekali.** Cek versi otomatis dan aktivasi lisensi dihapus.
+- **Shortcut global untuk XFCE** (`edgenotes --install-shortcuts`), selain GNOME. Versi sebelumnya melapor sukses di
+  Linux Mint XFCE padahal menulis ke pengaturan GNOME yang tidak dipakai.
+- **Terjemahan Inggris lengkap** untuk jendela Notes, Pengaturan, dan pesan.
+- `edgenotes --settings` sekarang benar-benar membuka tab Pengaturan.
+- Paket `.deb` (`packaging/build-deb.sh`).
 
 ## Baru di 4.1
 - **Bahasa default Inggris.** Bahasa Indonesia tetap ada: Pengaturan → *Language* → *Bahasa Indonesia*, lalu klik *Restart* di notifikasi.
@@ -74,7 +111,7 @@ Atau cukup **beri bintang** repositori ini dan ceritakan ke temanmu.
 - **Hapus instan + Urungkan:** tidak ada pop-up konfirmasi. Muncul notifikasi "Urungkan" selama 10 detik (berlaku juga untuk arsip).
 
 ### Integrasi sistem
-- **Shortcut global** (GNOME/Ubuntu, X11 maupun Wayland). Pasang lewat klik kanan strip → *Pasang shortcut global*, atau `edgenotes --install-shortcuts`.
+- **Shortcut global** (GNOME/Ubuntu dan XFCE). Pasang lewat klik kanan strip → *Pasang shortcut global*, atau `edgenotes --install-shortcuts`.
 
   | Shortcut | Aksi |
   |---|---|
@@ -84,7 +121,8 @@ Atau cukup **beri bintang** repositori ini dan ceritakan ke temanmu.
   | `Super+Alt+X` | Arsipkan catatan yang sedang dibuka |
   | `Super+Alt+F` | Cari cepat |
 
-  Di KDE, XFCE, dan desktop lain, tambahkan shortcut secara manual ke perintah `edgenotes --new`, `--all`, `--toggle`, `--archive`, atau `--search`.
+  Di XFCE shortcut ditambahkan ke *Pengaturan → Keyboard → Application Shortcuts* tanpa mengubah shortcut
+  milikmu; `edgenotes --remove-shortcuts` menghapusnya lagi. Di KDE dan desktop lain, tambahkan shortcut secara manual ke perintah `edgenotes --new`, `--all`, `--toggle`, `--archive`, atau `--search`.
 - **Jalan saat login:** menu → *Jalankan saat login*, atau `edgenotes --autostart on`.
 - **Impor & ekspor:** ekspor cadangan JSON (lengkap) atau Markdown. Impor bisa dari file cadangan JSON, atau dari file `.md`/`.txt` yang masing-masing jadi satu catatan.
 - **Data lokal:** catatan hanya ada di `~/.local/share/edgenotes/notes.json` (dengan cadangan otomatis `.bak`), gambar di folder `images/` di sebelahnya. Tidak ada cloud, telemetri, maupun koneksi internet.
