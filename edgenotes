@@ -15,8 +15,8 @@ Usage:
   edgenotes --focus [minutes]   focus mode: hide the strip (default 60 minutes)
   edgenotes --show | --hide     show / hide the peek card
   edgenotes --quit              quit
-  edgenotes --install-shortcuts install global shortcuts (GNOME)
-  edgenotes --remove-shortcuts  remove global shortcuts (GNOME)
+  edgenotes --install-shortcuts install global shortcuts (GNOME, XFCE)
+  edgenotes --remove-shortcuts  remove global shortcuts (GNOME, XFCE)
   edgenotes --autostart on|off  start at login
 """
 import json
@@ -24,6 +24,7 @@ import math
 import os
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import time
@@ -71,8 +72,9 @@ EN = {
  "EdgeNotes: buka/tutup": "EdgeNotes: open/close", "EdgeNotes: arsipkan catatan": "EdgeNotes: archive note",
  "EdgeNotes: cari catatan": "EdgeNotes: search notes",
  "PyGObject tidak ada": "PyGObject is not installed",
- "Desktop ini bukan GNOME/Ubuntu. Tambahkan shortcut manual ke perintah: ":
-     "This desktop isn’t GNOME/Ubuntu. Add shortcuts manually for these commands: ",
+ "Desktop ini bukan GNOME/Ubuntu atau XFCE. Tambahkan shortcut manual ke perintah: ":
+     "This desktop isn’t GNOME/Ubuntu or XFCE. Add shortcuts manually for these commands: ",
+ "xfconf-query tidak ditemukan": "xfconf-query was not found",
  "Shortcut terpasang: ": "Shortcuts installed: ", "Shortcut EdgeNotes dihapus.": "EdgeNotes shortcuts removed.",
  "EdgeNotes butuh GTK3 + PyGObject + pycairo.\n": "EdgeNotes needs GTK3 + PyGObject + pycairo.\n",
  # editor & jendela catatan
@@ -105,8 +107,8 @@ EN = {
  "＋ Catatan baru: “{q}”": "＋ New note: “{q}”", "Tidak ketemu. ": "No matches. ", "Terakhir diedit · ": "Recently edited. ",
  "↑↓ pilih · Enter buka · Esc tutup": "↑↓ to select, Enter to open, Esc to close",
  "Jalan otomatis saat login": "Start at login", "Pasang": "Install", "Shortcut keyboard global": "Global keyboard shortcuts",
- "Super+Alt+N catatan baru, Super+Alt+A semua catatan, Super+Alt+F cari (GNOME/Ubuntu).":
-     "Super+Alt+N new note, Super+Alt+A all notes, Super+Alt+F search (GNOME/Ubuntu).",
+ "Super+Alt+N catatan baru, Super+Alt+A semua catatan, Super+Alt+F cari (GNOME/Ubuntu, XFCE).":
+     "Super+Alt+N new note, Super+Alt+A all notes, Super+Alt+F search (GNOME/Ubuntu, XFCE).",
  "Gambar gagal disimpan: {e}": "Couldn’t save the image: {e}", "Gambar dihapus": "Image removed",
  "Versi lama dipulihkan (isi sebelumnya masuk riwayat)": "Older version restored (the current text was saved to history)",
  "Pengingat dihapus": "Reminder removed", "Klik untuk membuka catatan.": "Click to open the note.",
@@ -137,6 +139,55 @@ EN = {
  "Mulai ulang": "Restart",
  "Autostart aktif": "Autostart on", "Autostart nonaktif": "Autostart off",
  "# Arsip": "# Archive", "_Diperbarui {t}_": "_Updated {t}_",
+ # terjemahan Inggris untuk jendela Notes, Pengaturan dan toast
+ " · sedang dibuka": " · open",
+ "+ Baru": "+ New",
+ "Aktif": "Active",
+ "Arsip": "Archive",
+ "Bahasa": "Language",
+ "Belum ada grup (atur lewat ⋯ di jendela catatan)": "No groups yet (set one from ⋯ in a note window)",
+ "Buka folder data": "Open data folder",
+ "Cari…": "Search…",
+ "Catatan": "Notes",
+ "Data": "Data",
+ "Dikeluarkan dari grup": "Removed from group",
+ "Dipakai catatan yang belum diatur fontnya.": "Used by notes that have no font set.",
+ "Disematkan di atas strip": "Pinned to the top of the strip",
+ "EdgeNotes {v} · data di {d}": "EdgeNotes {v} · data in {d}",
+ "Ekspor Markdown…": "Export Markdown…",
+ "Ekspor cadangan (JSON)…": "Export backup (JSON)…",
+ "Font default": "Default font",
+ "Font default: {f}": "Default font: {f}",
+ "Gelap": "Dark",
+ "Ikuti sistem": "Follow system",
+ "Impor / ekspor": "Import / export",
+ "Impor catatan…": "Import notes…",
+ "Kanan": "Right",
+ "Kebiasaan": "Behavior",
+ "Keluar": "Quit",
+ "Kiri": "Left",
+ "Masuk grup “{g}”": "Added to group “{g}”",
+ "Pengaturan": "Settings",
+ "Posisi strip": "Strip position",
+ "Sembunyi saat layar penuh": "Hide in fullscreen",
+ "Semua catatan": "All notes",
+ "Seret untuk mengurutkan": "Drag to reorder",
+ "Seret ⠿ untuk mengurutkan": "Drag ⠿ to reorder",
+ "Strip menampilkan grup “{g}”": "Strip shows group “{g}”",
+ "Strip menampilkan semua catatan": "Strip shows all notes",
+ "Strip ngumpet waktu nonton atau main game layar penuh.": "The strip hides while you watch or play fullscreen.",
+ "Tampilan": "Appearance",
+ "Tema": "Theme",
+ "Terang": "Light",
+ "Tidak ada catatan.": "No notes.",
+ "Tidak disematkan lagi": "Unpinned",
+ "Ukuran huruf catatan": "Note font size",
+ "Urungkan": "Undo",
+ "Versi ": "Version ",
+ "{n} catatan": "{n} notes",
+ "“{t}” diarsipkan": "“{t}” archived",
+ "“{t}” dihapus": "“{t}” deleted",
+ "“{t}” dikeluarkan dari arsip": "“{t}” restored from archive",
 }
 MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
@@ -739,7 +790,7 @@ def gnome_shortcuts(install=True):
         return False, tr("PyGObject tidak ada")
     src = Gio.SettingsSchemaSource.get_default()
     if not src or not src.lookup(GNOME_KEYS, True):
-        return False, (tr("Desktop ini bukan GNOME/Ubuntu. Tambahkan shortcut manual ke perintah: ")
+        return False, (tr("Desktop ini bukan GNOME/Ubuntu atau XFCE. Tambahkan shortcut manual ke perintah: ")
                        + ", ".join(f"edgenotes {a}" for _, _, a, _ in SHORTCUTS))
     mk = Gio.Settings.new(GNOME_KEYS)
     paths = [p for p in mk.get_strv("custom-keybindings") if "/edgenotes-" not in p]
@@ -759,6 +810,48 @@ def gnome_shortcuts(install=True):
             f"{b.replace('<Super>', 'Super+').replace('<Alt>', 'Alt+').upper()} ({tr(n).split(': ')[1]})"
             for _, n, _, b in SHORTCUTS)
     return True, tr("Shortcut EdgeNotes dihapus.")
+
+
+XFCE_CHANNEL = "xfce4-keyboard-shortcuts"
+
+
+def xfce_shortcuts(install=True):
+    """Daftarkan shortcut global di XFCE lewat xfconf (sama seperti dialog Keyboard → Application Shortcuts).
+    Hanya menambah/menghapus entri milik EdgeNotes; properti `override` tidak disentuh supaya shortcut
+    bawaan pengguna tetap utuh."""
+    q = shutil.which("xfconf-query")
+    if not q:
+        return False, tr("xfconf-query tidak ditemukan")
+
+    def run(*args):
+        return subprocess.run([q, "-c", XFCE_CHANNEL, *args], capture_output=True, text=True)
+
+    exe = exe_path()
+    mine = {f"/commands/custom/{b}": f"{exe} {a}" for _, _, a, b in SHORTCUTS}
+    # buang entri lama kita (juga perintah lama dengan path berbeda) sebelum memasang ulang
+    listing = run("-l", "-v")
+    for line in (listing.stdout or "").splitlines():
+        prop, _, val = line.partition(" ")
+        if prop.startswith("/commands/custom/") and "edgenotes" in val.split("--")[0]:
+            run("-p", prop, "-r")
+    if install:
+        for prop, cmd in mine.items():
+            r = run("-p", prop, "-n", "-t", "string", "-s", cmd)
+            if r.returncode != 0:
+                return False, (r.stderr or "xfconf-query gagal").strip()
+        return True, tr("Shortcut terpasang: ") + ", ".join(
+            f"{b.replace('<Super>', 'Super+').replace('<Alt>', 'Alt+').upper()} ({tr(n).split(': ')[1]})"
+            for _, n, _, b in SHORTCUTS)
+    return True, tr("Shortcut EdgeNotes dihapus.")
+
+
+def desktop_shortcuts(install=True):
+    """Pasang/hapus shortcut global di desktop yang dikenali (XFCE atau GNOME).
+    Dipilih dari desktop yang sedang berjalan, bukan dari ada-tidaknya skema GNOME: di Linux Mint XFCE
+    skema GNOME ikut terpasang tetapi tidak dipakai, jadi menulis ke sana tidak akan berefek."""
+    if "XFCE" in (os.environ.get("XDG_CURRENT_DESKTOP") or "").upper() and shutil.which("xfconf-query"):
+        return xfce_shortcuts(install)
+    return gnome_shortcuts(install)   # GNOME/Ubuntu; desktop lain mendapat pesan "tambahkan manual"
 
 
 # --------------------------------------------------------------------------
@@ -3541,7 +3634,7 @@ def run_gui(argv):
             row(beh, tr("Jalan otomatis saat login"), switch(autostart_enabled(), ctl.set_autostart))
             sc = Gtk.Button(label=tr("Pasang"))
             sc.connect("clicked", lambda *_: ctl.install_shortcuts())
-            row(beh, tr("Shortcut keyboard global"), sc, tr("Super+Alt+N catatan baru, Super+Alt+A semua catatan, Super+Alt+F cari (GNOME/Ubuntu)."))
+            row(beh, tr("Shortcut keyboard global"), sc, tr("Super+Alt+N catatan baru, Super+Alt+A semua catatan, Super+Alt+F cari (GNOME/Ubuntu, XFCE)."))
 
             about = section(tr("Tentang"))
             links = Gtk.Box(spacing=6)
@@ -3803,7 +3896,7 @@ def run_gui(argv):
             elif "--all" in args:
                 self.open_all()
             elif "--settings" in args:
-                self.open_settings()
+                self.open_hub("settings")
             elif "--archive" in args:
                 self.archive_current()
             elif "--toggle" in args:
@@ -4395,7 +4488,7 @@ def run_gui(argv):
                 self._show_toast(tr("Gagal: {e}").format(e=e), None)
 
         def install_shortcuts(self):
-            ok, msg = gnome_shortcuts(True)
+            ok, msg = desktop_shortcuts(True)
             dlg = Gtk.MessageDialog(transient_for=None, modal=True,
                                     message_type=Gtk.MessageType.INFO if ok else Gtk.MessageType.WARNING,
                                     buttons=Gtk.ButtonsType.OK, text=tr("Shortcut global"))
@@ -4529,7 +4622,7 @@ def main(argv=None):
     except (OSError, ValueError, AttributeError):
         pass
     if "--install-shortcuts" in args or "--remove-shortcuts" in args:
-        ok, msg = gnome_shortcuts("--install-shortcuts" in args)
+        ok, msg = desktop_shortcuts("--install-shortcuts" in args)
         print(msg)
         return 0 if ok else 1
     if "--autostart" in args:
