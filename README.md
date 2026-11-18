@@ -128,6 +128,8 @@ A tiling compositor would otherwise tile the strip like a normal window. EdgeNot
 - It always starts through XWayland, even when `GDK_BACKEND=wayland,...` is exported (Omarchy does this).
 - It sizes itself from the monitor's scale reported by `hyprctl`, not from `GDK_SCALE`. Hyprland does not
   scale XWayland windows, so a global `GDK_SCALE=2` on a scale-1 screen would draw everything twice as big.
+- It keeps clear of the bar and Hyprland's `gaps_out`. XWayland apps get no work area from Hyprland, so
+  EdgeNotes reads the reserved space and gaps from `hyprctl` and places the strip and windows inside them.
 - `edgenotes --install-shortcuts` writes `~/.config/hypr/edgenotes.lua` with the window rules and shortcuts,
   and adds one `require("hypr.edgenotes")` line to `~/.config/hypr/hyprland.lua`.
   `edgenotes --remove-shortcuts` removes both.
