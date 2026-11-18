@@ -15,8 +15,8 @@ Usage:
   edgenotes --focus [minutes]   focus mode: hide the strip (default 60 minutes)
   edgenotes --show | --hide     show / hide the peek card
   edgenotes --quit              quit
-  edgenotes --install-shortcuts install global shortcuts (GNOME, XFCE)
-  edgenotes --remove-shortcuts  remove global shortcuts (GNOME, XFCE)
+  edgenotes --install-shortcuts install global shortcuts (GNOME, XFCE, Omarchy)
+  edgenotes --remove-shortcuts  remove global shortcuts (GNOME, XFCE, Omarchy)
   edgenotes --autostart on|off  start at login
 """
 import json
@@ -31,7 +31,7 @@ import time
 import uuid
 
 APP_ID = "io.github.edgenotes.EdgeNotes"
-VERSION = "4.2.0"
+VERSION = "4.3.0"
 DEBUG = bool(os.environ.get("EDGENOTES_DEBUG"))
 
 # ---- bahasa: teks sumber berbahasa Indonesia, default tampil bahasa Inggris ----
@@ -76,6 +76,10 @@ EN = {
      "This desktop isn’t GNOME/Ubuntu or XFCE. Add shortcuts manually for these commands: ",
  "xfconf-query tidak ditemukan": "xfconf-query was not found",
  "Shortcut terpasang: ": "Shortcuts installed: ", "Shortcut EdgeNotes dihapus.": "EdgeNotes shortcuts removed.",
+ "Hyprland tanpa Omarchy belum didukung otomatis. Lihat README bagian Hyprland.":
+     "Hyprland without Omarchy is not set up automatically yet. See the Hyprland section in the README.",
+ "Dilewati (sudah dipakai): ": "Skipped (already bound): ",
+ "Window rule Hyprland terpasang.": "Hyprland window rules installed.",
  "EdgeNotes butuh GTK3 + PyGObject + pycairo.\n": "EdgeNotes needs GTK3 + PyGObject + pycairo.\n",
  # editor & jendela catatan
  "Font": "Font", "Jadikan jendela terpisah": "Open in its own window", "Hapus (bisa diurungkan)": "Delete (can be undone)",
@@ -107,8 +111,8 @@ EN = {
  "＋ Catatan baru: “{q}”": "＋ New note: “{q}”", "Tidak ketemu. ": "No matches. ", "Terakhir diedit · ": "Recently edited. ",
  "↑↓ pilih · Enter buka · Esc tutup": "↑↓ to select, Enter to open, Esc to close",
  "Jalan otomatis saat login": "Start at login", "Pasang": "Install", "Shortcut keyboard global": "Global keyboard shortcuts",
- "Super+Alt+N catatan baru, Super+Alt+A semua catatan, Super+Alt+F cari (GNOME/Ubuntu, XFCE).":
-     "Super+Alt+N new note, Super+Alt+A all notes, Super+Alt+F search (GNOME/Ubuntu, XFCE).",
+ "Super+Alt+N catatan baru, Super+Alt+A semua catatan, Super+Alt+F cari (GNOME/Ubuntu, XFCE, Omarchy).":
+     "Super+Alt+N new note, Super+Alt+A all notes, Super+Alt+F search (GNOME/Ubuntu, XFCE, Omarchy).",
  "Gambar gagal disimpan: {e}": "Couldn’t save the image: {e}", "Gambar dihapus": "Image removed",
  "Versi lama dipulihkan (isi sebelumnya masuk riwayat)": "Older version restored (the current text was saved to history)",
  "Pengingat dihapus": "Reminder removed", "Klik untuk membuka catatan.": "Click to open the note.",
@@ -845,10 +849,123 @@ def xfce_shortcuts(install=True):
     return True, tr("Shortcut EdgeNotes dihapus.")
 
 
+HYPR_MODULE = "edgenotes"                  # ~/.config/hypr/edgenotes.lua
+HYPR_REQUIRE = 'require("hypr.edgenotes")  -- EdgeNotes: dipasang oleh edgenotes --install-shortcuts'
+HYPR_MODS = {"SUPER": 64, "ALT": 8, "CTRL": 4, "SHIFT": 1}
+
+
+def hypr_dir():
+    base = os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config")
+    return os.path.join(base, "hypr")
+
+
+def hypr_bound_keys():
+    """Kombinasi (modmask, KEY) yang sudah dipakai Hyprland, supaya shortcut kita tidak menimpa bawaan
+    Omarchy (mis. Super+Alt+F = layar penuh). Shortcut EdgeNotes sendiri (dari pemasangan sebelumnya)
+    tidak dihitung, kalau tidak pemasangan ulang akan melewati semuanya."""
+    try:
+        r = subprocess.run(["hyprctl", "binds", "-j"], capture_output=True, text=True, timeout=5)
+        return {(b.get("modmask"), str(b.get("key", "")).upper()) for b in json.loads(r.stdout or "[]")
+                if not str(b.get("description", "")).startswith("EdgeNotes")}
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return set()
+
+
+def hyprland_scale():
+    """Skala bulat monitor yang sedang fokus di Hyprland, atau None kalau bukan Hyprland."""
+    if not os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"):
+        return None
+    try:
+        r = subprocess.run(["hyprctl", "monitors", "-j"], capture_output=True, text=True, timeout=5)
+        mons = json.loads(r.stdout or "[]")
+        mon = next((m for m in mons if m.get("focused")), mons[0] if mons else None)
+        return max(1, round(float(mon["scale"]))) if mon else None
+    except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError):
+        return None
+
+
+def hyprland_shortcuts(install=True):
+    """Omarchy (Hyprland dengan config Lua): tulis ~/.config/hypr/edgenotes.lua berisi window rule
+    (strip melayang di tepi, tanpa border/bayangan, ikut ke semua workspace) dan shortcut, lalu
+    muat lewat satu baris require di hyprland.lua. --remove-shortcuts membuang keduanya."""
+    d = hypr_dir()
+    main_cfg = os.path.join(d, "hyprland.lua")
+    mod_path = os.path.join(d, HYPR_MODULE + ".lua")
+    try:
+        with open(main_cfg, encoding="utf-8") as f:
+            main = f.read()
+    except OSError:
+        main = ""
+    if "default.hypr.omarchy" not in main:
+        return False, tr("Hyprland tanpa Omarchy belum didukung otomatis. Lihat README bagian Hyprland.")
+
+    lines = [ln for ln in main.splitlines() if ln.strip() != HYPR_REQUIRE]
+    skipped = []
+    if install:
+        exe = exe_path()
+        taken = hypr_bound_keys()
+        out = [
+            "-- EdgeNotes: dibuat oleh `edgenotes --install-shortcuts`, dihapus oleh `--remove-shortcuts`.",
+            "-- Jangan diedit: file ini ditulis ulang setiap kali shortcut dipasang.",
+            "",
+            "-- Strip dan jendela catatan menggambar bayangan/sudutnya sendiri.",
+            'o.window({ class = "^[Ee]dgenotes$" }, {',
+            "  float = true, border_size = 0, no_shadow = true, no_blur = true, rounding = 0,",
+            "})",
+            "-- Strip menempel di tepi layar di semua workspace dan tidak merebut fokus.",
+            'o.window({ class = "^[Ee]dgenotes$", title = "^EdgeNotes Strip$" }, {',
+            "  pin = true, no_anim = true, no_initial_focus = true,",
+            "})",
+            "",
+        ]
+        done = []
+        for _, name, arg, binding in SHORTCUTS:
+            key = binding.split(">")[-1].upper()
+            mods = [m for m in ("SUPER", "ALT", "CTRL", "SHIFT")
+                    if f"<{m.capitalize() if m != 'CTRL' else 'Control'}>" in binding]
+            label = " + ".join(mods + [key])
+            if (sum(HYPR_MODS[m] for m in mods), key) in taken:
+                skipped.append(label)
+                continue
+            out.append(f'o.bind("{label}", {json.dumps(tr(name))}, {json.dumps(f"{exe} {arg}")})')
+            done.append(f"{label} ({tr(name).split(': ')[1]})")
+        try:
+            os.makedirs(d, exist_ok=True)
+            with open(mod_path, "w", encoding="utf-8") as f:
+                f.write("\n".join(out) + "\n")
+            lines.append(HYPR_REQUIRE)
+        except OSError as e:
+            return False, str(e)
+    else:
+        try:
+            os.remove(mod_path)
+        except OSError:
+            pass
+    try:
+        with open(main_cfg, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines).rstrip("\n") + "\n")
+    except OSError as e:
+        return False, str(e)
+    try:
+        subprocess.run(["hyprctl", "reload"], capture_output=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        pass   # Hyprland juga memuat ulang sendiri saat config disimpan
+    if not install:
+        return True, tr("Shortcut EdgeNotes dihapus.")
+    msg = tr("Window rule Hyprland terpasang.")
+    if done:
+        msg += "\n" + tr("Shortcut terpasang: ") + ", ".join(done)
+    if skipped:
+        msg += "\n" + tr("Dilewati (sudah dipakai): ") + ", ".join(skipped)
+    return True, msg
+
+
 def desktop_shortcuts(install=True):
-    """Pasang/hapus shortcut global di desktop yang dikenali (XFCE atau GNOME).
+    """Pasang/hapus shortcut global di desktop yang dikenali (Hyprland, XFCE atau GNOME).
     Dipilih dari desktop yang sedang berjalan, bukan dari ada-tidaknya skema GNOME: di Linux Mint XFCE
     skema GNOME ikut terpasang tetapi tidak dipakai, jadi menulis ke sana tidak akan berefek."""
+    if os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"):
+        return hyprland_shortcuts(install)
     if "XFCE" in (os.environ.get("XDG_CURRENT_DESKTOP") or "").upper() and shutil.which("xfconf-query"):
         return xfce_shortcuts(install)
     return gnome_shortcuts(install)   # GNOME/Ubuntu; desktop lain mendapat pesan "tambahkan manual"
@@ -938,9 +1055,19 @@ window.en-search {{ border-radius: 12px; border: 1px solid {sel}; }}
 def run_gui(argv):
     # Wayland melarang aplikasi mengatur posisi jendelanya sendiri.
     # Lewat XWayland, posisi + always-on-top + input shape tetap jalan.
+    # Paksa x11 walau GDK_BACKEND sudah diisi: Omarchy/Hyprland mengekspor GDK_BACKEND=wayland,x11,*
+    # untuk semua aplikasi, dan di Wayland strip jadi jendela biasa yang di-tile di tengah layar.
+    # Nilai asli dipulihkan setelah GTK terbuka supaya aplikasi yang kita jalankan (browser, dll.) tidak ikut.
+    orig_env = {k: os.environ.get(k) for k in ("GDK_BACKEND", "GDK_SCALE")}
     if (os.environ.get("WAYLAND_DISPLAY") and os.environ.get("DISPLAY")
             and not os.environ.get("EDGENOTES_NATIVE_WAYLAND")):
-        os.environ.setdefault("GDK_BACKEND", "x11")
+        os.environ["GDK_BACKEND"] = "x11"
+        # Hyprland (force_zero_scaling) tidak menskalakan jendela XWayland, jadi skala GTK harus sama
+        # dengan skala monitor. GDK_SCALE global sering tidak cocok (mis. 2 di layar skala 1), dan
+        # strip yang 2x lebih besar tidak lagi pas di tepi layar.
+        hs = hyprland_scale()
+        if hs:
+            os.environ["GDK_SCALE"] = str(hs)
 
     try:
         import gi
@@ -964,6 +1091,11 @@ def run_gui(argv):
             "  openSUSE           : sudo zypper install python3-gobject-cairo python3-gobject-Gdk typelib-1_0-Gtk-3_0\n"
             f"(detail: {e})\n")
         return 1
+    for k, v in orig_env.items():
+        if v is None:
+            os.environ.pop(k, None)
+        else:
+            os.environ[k] = v
     try:  # opsional: deteksi aplikasi layar penuh
         gi.require_version("Wnck", "3.0")
         from gi.repository import Wnck
@@ -1623,7 +1755,7 @@ def run_gui(argv):
         """
 
         def __init__(self, ctl):
-            super().__init__(title="EdgeNotes")
+            super().__init__(title="EdgeNotes Strip")   # judul tetap: dipakai window rule Hyprland
             self.ctl = ctl
             self.cfg = store.config
             self.mode = "idle"          # idle | peek
@@ -3634,7 +3766,7 @@ def run_gui(argv):
             row(beh, tr("Jalan otomatis saat login"), switch(autostart_enabled(), ctl.set_autostart))
             sc = Gtk.Button(label=tr("Pasang"))
             sc.connect("clicked", lambda *_: ctl.install_shortcuts())
-            row(beh, tr("Shortcut keyboard global"), sc, tr("Super+Alt+N catatan baru, Super+Alt+A semua catatan, Super+Alt+F cari (GNOME/Ubuntu, XFCE)."))
+            row(beh, tr("Shortcut keyboard global"), sc, tr("Super+Alt+N catatan baru, Super+Alt+A semua catatan, Super+Alt+F cari (GNOME/Ubuntu, XFCE, Omarchy)."))
 
             about = section(tr("Tentang"))
             links = Gtk.Box(spacing=6)
