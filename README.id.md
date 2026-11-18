@@ -76,6 +76,7 @@ Atau cukup **beri bintang** repositori ini dan ceritakan ke temanmu.
 - **Dukungan Omarchy / Hyprland.** Sebelumnya strip di-tile di tengah layar seperti jendela biasa. Sekarang:
   - EdgeNotes selalu jalan lewat XWayland, walau `GDK_BACKEND=wayland,...` sudah diisi (Omarchy mengisinya).
   - Ukuran mengikuti skala monitor dari `hyprctl`, bukan `GDK_SCALE`. Jadi `GDK_SCALE=2` di layar skala 1 tidak lagi membuat strip dan jendela catatan dua kali lebih besar.
+  - Strip, kartu intip, dan semua jendela tidak lagi menutupi bar dan mengikuti gap Omarchy.
   - `edgenotes --install-shortcuts` memasang window rule (strip melayang di tepi, tanpa border, ikut ke semua workspace) dan shortcut. Shortcut yang sudah dipakai Omarchy dilewati, misalnya `Super+Alt+F` (layar penuh).
 
 ## Baru di 4.2
@@ -161,6 +162,7 @@ EdgeNotes berjalan lewat XWayland supaya bisa menempel di tepi layar dan selalu 
 Compositor tiling biasanya men-tile strip seperti jendela biasa. EdgeNotes menanganinya sendiri:
 - Selalu jalan lewat XWayland, walau `GDK_BACKEND=wayland,...` sudah diisi.
 - Ukuran diambil dari skala monitor (`hyprctl monitors`), bukan `GDK_SCALE`, karena Hyprland tidak menskalakan jendela XWayland.
+- Tidak menutupi bar dan menghormati `gaps_out` Hyprland. Aplikasi XWayland tidak diberi area kerja oleh Hyprland, jadi EdgeNotes membaca area bar dan gap dari `hyprctl`.
 - `edgenotes --install-shortcuts` menulis `~/.config/hypr/edgenotes.lua` (window rule + shortcut) dan menambah satu baris `require("hypr.edgenotes")` di `~/.config/hypr/hyprland.lua`. `edgenotes --remove-shortcuts` menghapus keduanya.
 
 Di Hyprland tanpa Omarchy, pasang rule yang setara secara manual: semua jendela `edgenotes` melayang tanpa border, bayangan, blur, atau sudut membulat, lalu pin jendela berjudul `EdgeNotes Strip` supaya muncul di semua workspace.
