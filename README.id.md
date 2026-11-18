@@ -44,6 +44,15 @@ edgenotes --install-shortcuts   # opsional: shortcut global (GNOME dan XFCE)
 edgenotes &
 ```
 
+**Omarchy (Arch + Hyprland)**
+```bash
+sudo pacman -S --needed python-gobject python-cairo gtk3
+git clone https://github.com/ibeeng/edgenotes && cd edgenotes
+make install PREFIX=~/.local    # tanpa sudo; ~/.local/bin sudah ada di PATH Omarchy
+edgenotes --install-shortcuts   # window rule + shortcut untuk Hyprland (lihat bagian Wayland)
+edgenotes &
+```
+
 Bangun `.deb` sendiri dengan `packaging/build-deb.sh` (hasilnya di `dist/`).
 Butuh: `python3`, `python3-gi`, `python3-gi-cairo`, `python3-cairo`, `gir1.2-gtk-3.0`
 (Debian/Ubuntu/Mint: `sudo apt install python3-gi python3-gi-cairo python3-cairo gir1.2-gtk-3.0`).
@@ -62,6 +71,12 @@ e-wallet: GoPay, OVO, DANA, ShopeePay, m-banking). Nominal bebas. Di aplikasi: k
 <img src="data/qris.jpg" alt="QRIS donasi" width="280">
 
 Atau cukup **beri bintang** repositori ini dan ceritakan ke temanmu.
+
+## Baru di 4.3
+- **Dukungan Omarchy / Hyprland.** Sebelumnya strip di-tile di tengah layar seperti jendela biasa. Sekarang:
+  - EdgeNotes selalu jalan lewat XWayland, walau `GDK_BACKEND=wayland,...` sudah diisi (Omarchy mengisinya).
+  - Ukuran mengikuti skala monitor dari `hyprctl`, bukan `GDK_SCALE`. Jadi `GDK_SCALE=2` di layar skala 1 tidak lagi membuat strip dan jendela catatan dua kali lebih besar.
+  - `edgenotes --install-shortcuts` memasang window rule (strip melayang di tepi, tanpa border, ikut ke semua workspace) dan shortcut. Shortcut yang sudah dipakai Omarchy dilewati, misalnya `Super+Alt+F` (layar penuh).
 
 ## Baru di 4.2
 - **Open source (GPLv3).** Tanpa lisensi, tanpa masa coba, tanpa mode hanya-baca.
@@ -111,7 +126,7 @@ Atau cukup **beri bintang** repositori ini dan ceritakan ke temanmu.
 - **Hapus instan + Urungkan:** tidak ada pop-up konfirmasi. Muncul notifikasi "Urungkan" selama 10 detik (berlaku juga untuk arsip).
 
 ### Integrasi sistem
-- **Shortcut global** (GNOME/Ubuntu dan XFCE). Pasang lewat klik kanan strip → *Pasang shortcut global*, atau `edgenotes --install-shortcuts`.
+- **Shortcut global** (GNOME/Ubuntu, XFCE, dan Omarchy). Pasang lewat klik kanan strip → *Pasang shortcut global*, atau `edgenotes --install-shortcuts`.
 
   | Shortcut | Aksi |
   |---|---|
@@ -122,7 +137,7 @@ Atau cukup **beri bintang** repositori ini dan ceritakan ke temanmu.
   | `Super+Alt+F` | Cari cepat |
 
   Di XFCE shortcut ditambahkan ke *Pengaturan → Keyboard → Application Shortcuts* tanpa mengubah shortcut
-  milikmu; `edgenotes --remove-shortcuts` menghapusnya lagi. Di KDE dan desktop lain, tambahkan shortcut secara manual ke perintah `edgenotes --new`, `--all`, `--toggle`, `--archive`, atau `--search`.
+  milikmu; `edgenotes --remove-shortcuts` menghapusnya lagi. Di Omarchy, shortcut yang sudah dipakai Omarchy dilewati dan dilaporkan. Di KDE dan desktop lain, tambahkan shortcut secara manual ke perintah `edgenotes --new`, `--all`, `--toggle`, `--archive`, atau `--search`.
 - **Jalan saat login:** menu → *Jalankan saat login*, atau `edgenotes --autostart on`.
 - **Impor & ekspor:** ekspor cadangan JSON (lengkap) atau Markdown. Impor bisa dari file cadangan JSON, atau dari file `.md`/`.txt` yang masing-masing jadi satu catatan.
 - **Data lokal:** catatan hanya ada di `~/.local/share/edgenotes/notes.json` (dengan cadangan otomatis `.bak`), gambar di folder `images/` di sebelahnya. Tidak ada cloud, telemetri, maupun koneksi internet.
@@ -141,6 +156,14 @@ Supaya font tulisan tangan dan mesin ketik terlihat paling bagus, pasang **Cavea
 
 ## Wayland
 EdgeNotes berjalan lewat XWayland supaya bisa menempel di tepi layar dan selalu di atas. Deteksi layar penuh hanya mengenali aplikasi X11/XWayland. Supaya latarnya transparan, desktop perlu compositor (GNOME, KDE, Cinnamon, dan XFCE dengan compositing aktif).
+
+### Hyprland dan Omarchy
+Compositor tiling biasanya men-tile strip seperti jendela biasa. EdgeNotes menanganinya sendiri:
+- Selalu jalan lewat XWayland, walau `GDK_BACKEND=wayland,...` sudah diisi.
+- Ukuran diambil dari skala monitor (`hyprctl monitors`), bukan `GDK_SCALE`, karena Hyprland tidak menskalakan jendela XWayland.
+- `edgenotes --install-shortcuts` menulis `~/.config/hypr/edgenotes.lua` (window rule + shortcut) dan menambah satu baris `require("hypr.edgenotes")` di `~/.config/hypr/hyprland.lua`. `edgenotes --remove-shortcuts` menghapus keduanya.
+
+Di Hyprland tanpa Omarchy, pasang rule yang setara secara manual: semua jendela `edgenotes` melayang tanpa border, bayangan, blur, atau sudut membulat, lalu pin jendela berjudul `EdgeNotes Strip` supaya muncul di semua workspace.
 
 ## Hapus
 - `edgenotes --remove-shortcuts; edgenotes --autostart off`

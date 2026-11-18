@@ -46,6 +46,16 @@ edgenotes --install-shortcuts    # optional: global shortcuts (GNOME and XFCE)
 edgenotes &
 ```
 
+**Omarchy (Arch + Hyprland)**
+
+```bash
+sudo pacman -S --needed python-gobject python-cairo gtk3
+git clone https://github.com/ibeeng/edgenotes && cd edgenotes
+make install PREFIX=~/.local     # no sudo needed; ~/.local/bin is on Omarchy's PATH
+edgenotes --install-shortcuts    # window rules + shortcuts for Hyprland (see below)
+edgenotes &
+```
+
 Build the `.deb` yourself with `packaging/build-deb.sh` (output in `dist/`).
 
 Requires `python3`, `python3-gi`, `python3-gi-cairo`, `python3-cairo`, `gir1.2-gtk-3.0`
@@ -67,7 +77,7 @@ Notes from older versions are picked up automatically. Remove with `sudo make un
   No cloud, no telemetry, no network code.
 - **Idle cost:** event-driven with no polling, 0% CPU when idle. Python + GTK keeps memory around 40 MB.
 
-## Shortcuts (GNOME and XFCE: `edgenotes --install-shortcuts`)
+## Shortcuts (GNOME, XFCE and Omarchy: `edgenotes --install-shortcuts`)
 
 | Shortcut | Action |
 |---|---|
@@ -78,7 +88,8 @@ Notes from older versions are picked up automatically. Remove with `sudo make un
 | `Super+Alt+F` | Quick search |
 
 On XFCE the shortcuts are added to *Settings → Keyboard → Application Shortcuts* (your existing shortcuts are
-left untouched); `edgenotes --remove-shortcuts` takes them out again. On KDE and other desktops, bind keys
+left untouched); `edgenotes --remove-shortcuts` takes them out again. On Omarchy, any key Omarchy already
+uses is skipped and reported (`Super+Alt+F` is fullscreen there). On KDE and other desktops, bind keys
 manually to `edgenotes --new`, `--all`, `--toggle`, `--archive`, `--search`.
 
 ## Command line
@@ -109,6 +120,20 @@ For the best look, install **Caveat** and **Courier Prime** (Google Fonts): extr
 EdgeNotes runs through XWayland so it can dock to the edge and stay on top. Fullscreen detection only sees
 X11/XWayland apps. For a transparent background the desktop needs a compositor (GNOME, KDE, Cinnamon, XFCE
 with compositing on).
+
+### Hyprland and Omarchy
+
+A tiling compositor would otherwise tile the strip like a normal window. EdgeNotes handles this itself:
+
+- It always starts through XWayland, even when `GDK_BACKEND=wayland,...` is exported (Omarchy does this).
+- It sizes itself from the monitor's scale reported by `hyprctl`, not from `GDK_SCALE`. Hyprland does not
+  scale XWayland windows, so a global `GDK_SCALE=2` on a scale-1 screen would draw everything twice as big.
+- `edgenotes --install-shortcuts` writes `~/.config/hypr/edgenotes.lua` with the window rules and shortcuts,
+  and adds one `require("hypr.edgenotes")` line to `~/.config/hypr/hyprland.lua`.
+  `edgenotes --remove-shortcuts` removes both.
+
+On Hyprland without Omarchy, add the equivalent rules by hand: float every `edgenotes` window with no border,
+shadow, blur or rounding, and pin the window titled `EdgeNotes Strip` so it shows on every workspace.
 
 ## Support
 
