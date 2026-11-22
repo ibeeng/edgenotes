@@ -31,7 +31,7 @@ layar virtual oleh [`tools/capture-demo.sh`](tools/capture-demo.sh), jadi catata
 [Releases](https://github.com/ibeeng/edgenotes/releases), lalu:
 
 ```bash
-sudo apt install ./edgenotes_4.2.0_all.deb
+sudo apt install ./edgenotes_*_all.deb
 edgenotes --install-shortcuts   # opsional: shortcut global (GNOME dan XFCE)
 edgenotes &
 ```

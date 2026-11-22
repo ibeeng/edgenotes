@@ -32,7 +32,7 @@ virtual display by [`tools/capture-demo.sh`](tools/capture-demo.sh), so no real 
 [Releases](https://github.com/ibeeng/edgenotes/releases) page, then:
 
 ```bash
-sudo apt install ./edgenotes_4.2.0_all.deb
+sudo apt install ./edgenotes_*_all.deb
 edgenotes --install-shortcuts    # optional: global shortcuts (GNOME and XFCE)
 edgenotes &
 ```
