@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EdgeNotes: catatan tempel di pinggir layar, untuk Linux</title>
+<meta name="description" content="Sticky notes untuk Linux yang nempel di pinggir layar sebagai tab. Gratis, open source (GPLv3), tanpa akun dan tanpa cloud.">
+<meta property="og:title" content="EdgeNotes">
+<meta property="og:description" content="Catatan tempel yang nempel di pinggir layar. Gratis, open source, untuk Linux.">
+<meta property="og:image" content="https://ibeeng.github.io/edgenotes/img/strip-light.png">
+<meta property="og:type" content="website">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preload" href="fonts/caveat-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="site.css">
+<script>
+  // tema & bahasa dipasang sebelum halaman tampil, supaya tidak berkedip
+  (function () {
+    var t = localStorage.getItem("en-theme");
+    if (t !== "light" && t !== "dark") t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    document.documentElement.dataset.theme = t;
+  })();
+</script>
+<script src="site.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#isi" data-i18n="skip">Langsung ke isi</a>
+
+<header class="top">
+  <a class="brand" href="#" aria-label="EdgeNotes, ke atas">
+    <img src="icon.svg" alt="" width="32" height="32">
+    <span>EdgeNotes</span>
+  </a>
+  <div class="top-actions">
+    <a class="top-link" href="https://github.com/ibeeng/edgenotes">GitHub</a>
+    <button type="button" class="pill-btn" id="lang-btn" aria-label="Switch to English">EN</button>
+    <button type="button" class="pill-btn" id="theme-btn" aria-pressed="false">
+      <span class="theme-label" data-i18n="theme_dark">Gelap</span>
+    </button>
+  </div>
+</header>
+
+<!-- navigasi = tab di tepi layar, seperti strip EdgeNotes sendiri -->
+<nav class="edge" aria-label="Bagian halaman" data-i18n-aria="nav_label">
+  <a href="#cerita" style="--c: var(--n-yellow)" data-i18n="nav_story">Cerita</a>
+  <a href="#cara-kerja" style="--c: var(--n-blue)" data-i18n="nav_how">Cara kerja</a>
+  <a href="#fitur" style="--c: var(--n-green)" data-i18n="nav_features">Fitur</a>
+  <a href="#pasang" style="--c: var(--n-pink)" data-i18n="nav_install">Pasang</a>
+</nav>
+
+<main id="isi">
+  <section class="hero">
+    <div class="hero-text">
+      <h1 data-i18n="hero_title">Catatan yang nempel di pinggir layar.</h1>
+      <p class="lead" data-i18n="hero_lead">Sticky notes untuk Linux. Catatanmu jadi tab kecil di tepi layar: arahkan mouse untuk ngintip, klik untuk buka. Nggak ada jendela yang nutupin kerjaan.</p>
+      <div class="cta">
+        <a class="btn btn-main" href="https://github.com/ibeeng/edgenotes/releases/latest" data-i18n="cta_deb">Unduh .deb untuk Ubuntu</a>
+        <a class="btn btn-quiet" href="#pasang" data-i18n="cta_other">Pasang di Arch / Omarchy</a>
+      </div>
+      <p class="fine" data-i18n="hero_fine">Gratis dan open source (GPLv3). Tanpa akun, tanpa cloud.</p>
+    </div>
+    <figure class="hero-shot">
+      <img src="img/demo-crop.gif" width="640" height="506" fetchpriority="high"
+           alt="Demo EdgeNotes: strip di tepi layar mengembang jadi tab, satu tab tumbuh jadi kartu intip, lalu diklik untuk membuka catatan"
+           data-i18n-alt="demo_alt">
+    </figure>
+  </section>
+
+  <section id="cerita" class="story">
+    <article class="note tilt" style="--c: var(--n-yellow)">
+      <p class="note-head" data-i18n="story_head">Kenapa aku bikin ini</p>
+      <p data-i18n="story_p1">Aku bikin aplikasi ini buat nulis catatan pas lagi ngerjain project. Catatannya harus selalu kelihatan, tapi nggak boleh ganggu.</p>
+      <p data-i18n="story_p2">Bikinnya dibantu AI. Idenya, alurnya, dan yang ngetes tiap hari tetap aku sendiri. Dan ternyata beneran kepake: project-ku kelar sampai selesai.</p>
+      <p class="sign">ibeeng</p>
+    </article>
+  </section>
+
+  <section id="cara-kerja" class="how">
+    <h2 data-i18n="how_title">Dari pil tipis jadi catatan, dalam satu gerakan mouse</h2>
+    <figure class="strip">
+      <img class="only-light" src="img/strip-light.png" width="1400" height="549" loading="lazy"
+           alt="Empat keadaan strip, tema terang" data-i18n-alt="strip_alt_light">
+      <img class="only-dark" src="img/strip-dark.png" width="1400" height="549" loading="lazy"
+           alt="Empat keadaan strip, tema gelap" data-i18n-alt="strip_alt_dark">
+      <figcaption>
+        <ol class="stages">
+          <li data-i18n="stage1"><b>Diam.</b> Cuma pil tipis di tepi layar.</li>
+          <li data-i18n="stage2"><b>Didekati.</b> Pilnya mengembang jadi tab berwarna.</li>
+          <li data-i18n="stage3"><b>Hover tab.</b> Muncul kartu intip berisi catatannya.</li>
+          <li data-i18n="stage4"><b>Checklist.</b> Progresnya kelihatan tanpa membuka apa pun.</li>
+        </ol>
+      </figcaption>
+    </figure>
+
+    <div class="editor-row">
+      <img class="only-light" src="img/editor-light.png" width="560" height="470" loading="lazy"
+           alt="Jendela editor catatan, tema terang" data-i18n-alt="editor_alt_light">
+      <img class="only-dark" src="img/editor-dark.png" width="560" height="470" loading="lazy"
+           alt="Jendela editor catatan, tema gelap" data-i18n-alt="editor_alt_dark">
+      <div class="editor-text">
+        <h3 data-i18n="editor_title">Klik tab, catatannya kebuka</h3>
+        <p data-i18n="editor_p">Tersimpan otomatis tiap kamu ngetik. Ketik <code>[ ]</code> untuk checklist, <code>-</code> atau <code>1.</code> untuk daftar. Bisa ditempel gambar dan link-nya bisa diklik.</p>
+        <h3 data-i18n="keys_title">Atau langsung dari keyboard</h3>
+        <dl class="keys">
+          <div><dt><kbd>Super</kbd> <kbd>Alt</kbd> <kbd>N</kbd></dt><dd data-i18n="key_new">catatan baru</dd></div>
+          <div><dt><kbd>Super</kbd> <kbd>Alt</kbd> <kbd>A</kbd></dt><dd data-i18n="key_all">semua catatan</dd></div>
+          <div><dt><kbd>Super</kbd> <kbd>Alt</kbd> <kbd>E</kbd></dt><dd data-i18n="key_toggle">buka/tutup catatan terakhir</dd></div>
+          <div><dt><kbd>Super</kbd> <kbd>Alt</kbd> <kbd>F</kbd></dt><dd data-i18n="key_search">cari cepat</dd></div>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <section id="fitur" class="features">
+    <div class="features-head">
+      <h2 data-i18n="feat_title">Isinya apa aja?</h2>
+      <p data-i18n="feat_hint">Coba centang, sama kayak checklist di aplikasinya.</p>
+      <p class="progress" aria-live="polite"><span id="done">0</span>/<span id="total">12</span> <span data-i18n="feat_done">dicentang</span></p>
+    </div>
+    <ul class="checklist note" style="--c: var(--n-green)">
+      <li><label><input type="checkbox"><span data-i18n="f1">Tab di tepi layar, intip dengan hover</span></label></li>
+      <li><label><input type="checkbox"><span data-i18n="f2">Checklist dengan progres</span></label></li>
+      <li><label><input type="checkbox"><span data-i18n="f3">Pengingat</span></label></li>
+      <li><label><input type="checkbox"><span data-i18n="f4">Pencarian cepat</span></label></li>
+      <li><label><input type="checkbox"><span data-i18n="f5">Sematkan catatan penting</span></label></li>
+      <li><label><input type="checkbox"><span data-i18n="f6">Grup catatan</span></label></li>
+      <li><label><input type="checkbox"><span data-i18n="f7">Mode fokus: sembunyikan strip sementara</span></label></li>
+      <li><label><input type="checkbox"><span data-i18n="f8">Riwayat versi, jadi bisa balik ke tulisan lama</span></label></li>
+      <li><label><input type="checkbox"><span data-i18n="f9">Tempel gambar dari clipboard</span></label></li>
+      <li><label><input type="checkbox"><span data-i18n="f10">4 font dan 8 warna catatan</span></label></li>
+      <li><label><input type="checkbox"><span data-i18n="f11">Tema terang dan gelap, ikut sistem</span></label></li>
+      <li><label><input type="checkbox"><span data-i18n="f12">Ekspor dan impor: JSON, Markdown, teks</span></label></li>
+    </ul>
+  </section>
+
+  <section class="privacy">
+    <p class="big" data-i18n="priv_big">Catatanmu nggak ke mana-mana.</p>
+    <p data-i18n="priv_p">Tanpa akun, tanpa cloud, dan nggak ada kode jaringan sama sekali. Semua tersimpan di <code class="path">~/.local/share/edgenotes/notes.json</code>, plus cadangan <code>.bak</code> otomatis.</p>
+  </section>
+
+  <section id="pasang" class="install">
+    <h2 data-i18n="inst_title">Pasang</h2>
+    <div class="tabs" role="tablist" aria-label="Pilih distro" data-i18n-aria="inst_tabs">
+      <button type="button" role="tab" id="t-deb" aria-controls="p-deb" aria-selected="true">Ubuntu / Mint / Debian</button>
+      <button type="button" role="tab" id="t-arch" aria-controls="p-arch" aria-selected="false" tabindex="-1">Arch / Omarchy</button>
+      <button type="button" role="tab" id="t-src" aria-controls="p-src" aria-selected="false" tabindex="-1" data-i18n="inst_other">Distro lain</button>
+    </div>
+
+    <div class="panel" role="tabpanel" id="p-deb" aria-labelledby="t-deb">
+      <p data-i18n="inst_deb">Unduh file <code>.deb</code> dari <a href="https://github.com/ibeeng/edgenotes/releases/latest">halaman rilis terbaru</a>, lalu:</p>
+      <div class="cmd"><pre><code>sudo apt install ./edgenotes_*_all.deb
+edgenotes --install-shortcuts
+edgenotes &amp;</code></pre><button type="button" class="copy" data-i18n="copy">Salin</button></div>
+    </div>
+
+    <div class="panel" role="tabpanel" id="p-arch" aria-labelledby="t-arch" hidden>
+      <p data-i18n="inst_arch">Tanpa sudo untuk pasangnya. <code>~/.local/bin</code> sudah ada di PATH Omarchy.</p>
+      <div class="cmd"><pre><code>sudo pacman -S --needed python-gobject python-cairo gtk3
+git clone https://github.com/ibeeng/edgenotes &amp;&amp; cd edgenotes
+make install PREFIX=~/.local
+edgenotes --install-shortcuts
+edgenotes &amp;</code></pre><button type="button" class="copy" data-i18n="copy">Salin</button></div>
+    </div>
+
+    <div class="panel" role="tabpanel" id="p-src" aria-labelledby="t-src" hidden>
+      <p data-i18n="inst_src">Butuh Python 3, PyGObject, pycairo, dan GTK 3 dari package manager distromu.</p>
+      <div class="cmd"><pre><code>git clone https://github.com/ibeeng/edgenotes &amp;&amp; cd edgenotes
+sudo make install
+edgenotes --install-shortcuts
+edgenotes &amp;</code></pre><button type="button" class="copy" data-i18n="copy">Salin</button></div>
+    </div>
+    <p class="copy-status" role="status" aria-live="polite"></p>
+  </section>
+</main>
+
+<footer class="foot">
+  <p data-i18n="foot">EdgeNotes dibuat oleh ibeeng. Lisensi GPL-3.0.</p>
+  <p><a href="https://github.com/ibeeng/edgenotes" data-i18n="foot_star">Kalau suka, kasih bintang di GitHub</a></p>
+</footer>
+</body>
+</html>
