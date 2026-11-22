@@ -31,7 +31,7 @@ import time
 import uuid
 
 APP_ID = "io.github.edgenotes.EdgeNotes"
-VERSION = "4.3.0"
+VERSION = "4.3.1"
 DEBUG = bool(os.environ.get("EDGENOTES_DEBUG"))
 
 # ---- bahasa: teks sumber berbahasa Indonesia, default tampil bahasa Inggris ----
@@ -198,14 +198,14 @@ MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct
 
 # 8 warna: (terang, gelap)
 PALETTE = {
-    "yellow": ("#F7D774", "#6B5A1E"),
-    "green":  ("#A8E6C4", "#2F5E46"),
-    "blue":   ("#A9D6F5", "#284F6B"),
-    "pink":   ("#F6B8CC", "#6B3347"),
-    "purple": ("#CDB8F0", "#4B3A6E"),
-    "orange": ("#F8C291", "#6E4424"),
-    "red":    ("#F4A6A6", "#6E2C2C"),
-    "gray":   ("#D9D9D9", "#4A4A4A"),
+    "yellow": ("#F7D774", "#4A4120"),
+    "green":  ("#A8E6C4", "#1E4536"),
+    "blue":   ("#A9D6F5", "#1F3A52"),
+    "pink":   ("#F6B8CC", "#532838"),
+    "purple": ("#CDB8F0", "#3A2F57"),
+    "orange": ("#F8C291", "#55361F"),
+    "red":    ("#F4A6A6", "#572626"),
+    "gray":   ("#D9D9D9", "#37383D"),
 }
 COLORS = list(PALETTE)
 COLOR_NAMES = {"yellow": "Kuning", "green": "Hijau", "blue": "Biru", "pink": "Merah muda",
@@ -1007,6 +1007,9 @@ REST_PAD = 8
 DASH_W, DASH_H, DASH_GAP = 4, 14, 6
 TAB_W = 24          # lebar tab yang terlihat
 CARD_GROW_MS = 260  # tab tumbuh jadi kartu
+TILT_MS = 360       # kartu masuk miring lalu lurus bertahap
+TILT_SNAP_MS = 45   # lama tiap hentakan
+TILT_KEYS = ((0, -7.0), (110, -4.0), (190, -1.6), (260, 0.9), (330, 0.0))  # (ms, derajat)
 TAB_MIN_H = 54
 TAB_OVERLAP = 10    # tab bertumpuk seperti sirap
 TAB_MIN_COMPACT = 26  # tinggi tab terkecil saat catatan sangat banyak
@@ -1149,6 +1152,14 @@ def run_gui(argv):
         rrect(cr, x, y, w, h, 14)
         cr.set_source_rgb(*note_rgb(color))
         cr.fill_preserve()
+        if TH["dark"]:   # mode gelap: aksen tipis warna pastel di sisi kiri
+            cr.save()
+            cr.clip()
+            cr.set_source_rgba(*hex_rgb(PALETTE.get(color, PALETTE["yellow"])[0]), 0.85)
+            cr.rectangle(x, y, 3, h)
+            cr.fill()
+            cr.restore()
+            rrect(cr, x, y, w, h, 14)   # path kartu dipakai lagi untuk pita di bawah
         if band:
             cr.save()
             cr.clip()
@@ -1162,6 +1173,35 @@ def run_gui(argv):
         cr.set_source_rgba(0, 0, 0, 0.10 if not TH["dark"] else 0.35)
         cr.set_line_width(1)
         cr.stroke()
+
+    def draw_checkbox(cr, cx, cy, s, checked, ink, bg, hover=0.0, alpha=1.0):
+        """Kotak centang digambar sendiri (bukan glyph font: ☑ sering jadi emoji biru)."""
+        x, y = cx - s / 2, cy - s / 2
+        if hover > 0.001:
+            pad = 4 * hover
+            rrect(cr, x - pad, y - pad, s + 2 * pad, s + 2 * pad, s * 0.3 + pad)
+            cr.set_source_rgba(*ink, 0.20 * hover * alpha)
+            cr.fill()
+        if checked:
+            rrect(cr, x, y, s, s, s * 0.28)
+            cr.set_source_rgba(*ink, (0.80 + 0.15 * hover) * alpha)
+            cr.fill()
+            cr.save()
+            cr.set_line_width(max(1.4, s * 0.14))
+            cr.set_line_cap(cairo.LINE_CAP_ROUND)
+            cr.set_line_join(cairo.LINE_JOIN_ROUND)
+            cr.move_to(x + s * 0.26, y + s * 0.53)
+            cr.line_to(x + s * 0.43, y + s * 0.70)
+            cr.line_to(x + s * 0.75, y + s * 0.32)
+            cr.set_source_rgba(*bg, alpha)
+            cr.stroke()
+            cr.restore()
+        else:
+            rrect(cr, x + 0.75, y + 0.75, s - 1.5, s - 1.5, s * 0.26)
+            cr.set_line_width(1.5)
+            cr.set_source_rgba(*ink, (0.55 + 0.35 * hover) * alpha)
+            cr.stroke()
+        cr.new_path()
 
     def region_from(rects):
         return cairo.Region([cairo.RectangleInt(int(x), int(y), max(1, int(w)), max(1, int(h)))
@@ -1496,6 +1536,7 @@ def run_gui(argv):
     # ================================================================ editor
     class NoteEditor(Gtk.Box):
         """Editor satu catatan: autosave, daftar otomatis, checklist, warna, font."""
+        BOX_ROOM_X, BOX_ROOM_Y = 7, 5   # ruang di dalam TextView untuk halo kotak checklist
 
         def __init__(self, ctl, mode, title_getter=None, title_setter=None):
             super().__init__(orientation=Gtk.Orientation.VERTICAL)
@@ -1515,18 +1556,33 @@ def run_gui(argv):
             self.view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
             self.view.get_style_context().add_class("en-text")
             self.view.set_pixels_below_lines(2)
+            self.view.set_left_margin(self.BOX_ROOM_X)
+            self.view.set_top_margin(self.BOX_ROOM_Y)
             self.view.set_accepts_tab(False)
             self.buffer = self.view.get_buffer()
             self.t_title = self.buffer.create_tag("title", weight=Pango.Weight.BOLD, scale=1.15)
             self.t_done = self.buffer.create_tag("done", strikethrough=True)
             self.t_link = self.buffer.create_tag("link", underline=Pango.Underline.SINGLE,
                                                  foreground="#3D7BD9")
+            # ☐/☑: glyph-nya dibuat transparan, kotaknya digambar sendiri di atasnya
+            self.t_box = self.buffer.create_tag(
+                "box", foreground_rgba=Gdk.RGBA(0, 0, 0, 0),
+                family="DejaVu Sans, Adwaita Mono, Noto Sans Symbols 2, Sans",
+                letter_spacing=10 * Pango.SCALE)
             self._over_link = False
+            self._cursor_kind = "text"
+            self._hov_line = -1          # baris checklist yang sedang di-hover
+            self._hov = {}               # baris -> 0..1 (animasi hover)
+            self._pop = {}               # baris -> 0..1 (animasi saat dicentang)
+            self._anim_id = 0
+            self._anim_t = None
             self.buffer.connect("changed", self._changed)
             self.view.connect("key-press-event", self._key)
             self.view.connect("button-press-event", self._click)
-            self.view.add_events(Gdk.EventMask.POINTER_MOTION_MASK)
+            self.view.add_events(Gdk.EventMask.POINTER_MOTION_MASK | Gdk.EventMask.LEAVE_NOTIFY_MASK)
             self.view.connect("motion-notify-event", self._hover_link)
+            self.view.connect("leave-notify-event", self._leave_view)
+            self.view.connect_after("draw", self._draw_boxes)
             sc.add(self.view)
             self.pack_start(sc, True, True, 0)
 
@@ -1643,6 +1699,9 @@ def run_gui(argv):
             b.remove_tag(self.t_title, s, e)
             b.remove_tag(self.t_done, s, e)
             b.remove_tag(self.t_link, s, e)
+            b.remove_tag(self.t_box, s, e)
+            ink = 0.93 if TH["dark"] else 0.17
+            self.t_done.props.foreground_rgba = Gdk.RGBA(ink, ink, ink, 0.5)
             for i in range(b.get_line_count()):
                 ls = b.get_iter_at_line(i)
                 if ls.ends_line():
@@ -1654,6 +1713,13 @@ def run_gui(argv):
                     b.apply_tag(self.t_title, ls, le)
                 if line.lstrip().startswith("☑"):
                     b.apply_tag(self.t_done, ls, le)
+                m = re.match(r"^(\s*)[☐☑]", line)
+                if m:
+                    a = ls.copy()
+                    a.set_line_offset(len(m.group(1)))
+                    z = a.copy()
+                    z.forward_char()
+                    b.apply_tag(self.t_box, a, z)
                 for m in URL_RE.finditer(line):
                     a, z = ls.copy(), ls.copy()
                     a.set_line_offset(m.start())
@@ -1682,14 +1748,120 @@ def run_gui(argv):
                     return m.group(0)
             return None
 
+        def _box_iter(self, line):
+            """Iter ke ☐/☑ di awal baris `line`, atau None."""
+            if line < 0 or line >= self.buffer.get_line_count():
+                return None
+            it = self.buffer.get_iter_at_line(line)
+            while not it.ends_line() and it.get_char() in (" ", "\t"):
+                it.forward_char()
+            return it if it.get_char() in ("☐", "☑") else None
+
+        def _box_at(self, x, y):
+            """Baris checklist yang kotaknya ada di bawah kursor (koordinat jendela teks).
+            Area klik dibuat lebih lebar dari kotaknya supaya gampang kena."""
+            bx, by = self.view.window_to_buffer_coords(Gtk.TextWindowType.TEXT, int(x), int(y))
+            it, _top = self.view.get_line_at_y(by)
+            line = it.get_line()
+            box = self._box_iter(line)
+            if box is None:
+                return -1
+            r = self.view.get_iter_location(box)
+            if r.x - 8 <= bx <= r.x + r.width + 6 and r.y - 3 <= by <= r.y + r.height + 3:
+                return line
+            return -1
+
+        def _set_cursor(self, kind):
+            if kind == self._cursor_kind:
+                return
+            gw = self.view.get_window(Gtk.TextWindowType.TEXT)
+            if gw is not None:
+                self._cursor_kind = kind
+                gw.set_cursor(Gdk.Cursor.new_from_name(gw.get_display(), kind))
+
         def _hover_link(self, view, ev):
-            over = self._url_at(self._iter_at(ev.x, ev.y)) is not None
+            box = self._box_at(ev.x, ev.y)
+            over = box < 0 and self._url_at(self._iter_at(ev.x, ev.y)) is not None
             if over != self._over_link:
                 self._over_link = over
-                gw = view.get_window(Gtk.TextWindowType.TEXT)
-                if gw is not None:
-                    gw.set_cursor(Gdk.Cursor.new_from_name(gw.get_display(), "pointer" if over else "text"))
                 view.set_tooltip_text(tr("Ctrl+klik untuk membuka link") if over else None)
+            self._set_cursor("pointer" if (over or box >= 0) else "text")
+            self._hover_box(box)
+            return False
+
+        def _leave_view(self, *_):
+            self._hover_box(-1)
+            self._cursor_kind = None   # pastikan kursor diset ulang saat masuk lagi
+            return False
+
+        def _hover_box(self, line):
+            if line != self._hov_line:
+                self._hov_line = line
+                if line >= 0:
+                    self._hov.setdefault(line, 0.0)
+                self._animate()
+
+        def _animate(self):
+            if not self._anim_id:
+                self._anim_t = None
+                self._anim_id = self.view.add_tick_callback(self._anim_tick)
+
+        def _anim_tick(self, _w, clock):
+            now = clock.get_frame_time() / 1e6
+            dt = 1 / 60 if self._anim_t is None else min(0.05, now - self._anim_t)
+            self._anim_t = now
+            busy = False
+            for line in list(self._hov):
+                tgt = 1.0 if line == self._hov_line else 0.0
+                v = self._hov[line]
+                v += (tgt - v) * min(1.0, dt * 16)       # ±120 ms, melambat di ujung
+                if abs(tgt - v) < 0.01:
+                    v = tgt
+                else:
+                    busy = True
+                if v <= 0 and tgt == 0:
+                    self._hov.pop(line)
+                else:
+                    self._hov[line] = v
+            for line in list(self._pop):
+                v = self._pop[line] + dt / 0.28
+                if v >= 1:
+                    self._pop.pop(line)
+                else:
+                    self._pop[line] = v
+                    busy = True
+            self.view.queue_draw()
+            if not busy:
+                self._anim_id = 0
+                return GLib.SOURCE_REMOVE
+            return GLib.SOURCE_CONTINUE
+
+        def _draw_boxes(self, view, cr):
+            vis = view.get_visible_rect()
+            it, _ = view.get_line_at_y(vis.y)
+            n = store.get(self.nid) if self.nid else None
+            bg = note_rgb(n["color"]) if n else ((0.2, 0.2, 0.2) if TH["dark"] else (1, 1, 1))
+            ink = (0.93, 0.93, 0.93) if TH["dark"] else (0.17, 0.17, 0.17)
+            line = it.get_line()
+            last = view.get_line_at_y(vis.y + vis.height)[0].get_line()
+            for ln in range(line, last + 1):
+                box = self._box_iter(ln)
+                if box is None:
+                    continue
+                r = view.get_iter_location(box)
+                wx, wy = view.buffer_to_window_coords(Gtk.TextWindowType.WIDGET, r.x, r.y)
+                # kotak harus muat sebelum teks sesudahnya (lebar glyph beda-beda per font/ukuran)
+                nxt = box.copy()
+                nxt.forward_char()
+                if nxt.get_char() == " ":
+                    nxt.forward_char()
+                room = view.get_iter_location(nxt).x - r.x if not nxt.ends_line() else r.width
+                s = max(9, min(19, round(r.height * 0.70), room - 6))
+                h = self._hov.get(ln, 0.0)
+                p = self._pop.get(ln)
+                k = 1 + 0.08 * h + (0.22 * math.sin(math.pi * p) if p is not None else 0)
+                draw_checkbox(cr, wx + s / 2 + 1, wy + r.height / 2, s * k,
+                              box.get_char() == "☑", ink, bg, hover=h)
             return False
 
         def paste_image(self):
@@ -1798,6 +1970,10 @@ def run_gui(argv):
         def _click(self, view, ev):
             if ev.button != 1 or ev.type != Gdk.EventType.BUTTON_PRESS:
                 return False
+            line = self._box_at(ev.x, ev.y)
+            if line >= 0:
+                self._toggle_box(line)
+                return True
             it = self._iter_at(ev.x, ev.y)
             if it is None:
                 return False
@@ -1808,13 +1984,13 @@ def run_gui(argv):
                 except GLib.Error as e:
                     log(f"gagal membuka link: {e}")
                 return True
+            return False
+
+        def _toggle_box(self, line):
+            it = self._box_iter(line)
+            if it is None:
+                return
             ch = it.get_char()
-            if ch not in ("☐", "☑"):
-                return False
-            ls = it.copy()
-            ls.set_line_offset(0)
-            if self.buffer.get_text(ls, it, False).strip():
-                return False
             end = it.copy()
             end.forward_char()
             b = self.buffer
@@ -1822,7 +1998,8 @@ def run_gui(argv):
             b.delete(it, end)
             b.insert(it, "☑" if ch == "☐" else "☐")
             b.end_user_action()
-            return True
+            self._pop[line] = 0.0
+            self._animate()
 
     # ================================================================ edge strip window
     class EdgeWindow(Gtk.Window):
@@ -1899,6 +2076,7 @@ def run_gui(argv):
 
             self.fan_anim = Tween(self.strip, self._set_fan, 0.0, ease=False)
             self.slot_anim = Tween(self.strip, self._set_slot_t, 1.0)
+            self.tilt_anim = Tween(self.strip, lambda _v: self.strip.queue_draw(), 1.0, ease=False)
             self.apply_side()
 
         # ---------- pengingat ----------
@@ -2022,15 +2200,16 @@ def run_gui(argv):
             key = (n["text"], font, TH["dark"])
             c = self._text_cache.get(n["id"])
             if c and c[0] == key:
-                return c[1], c[2]
+                return c[1], c[2], c[3]
             title, _, body = n["text"].partition("\n")
             title = title.strip() or note_title(n["text"])
-            tw = (CARD_W - CARD_BAND - 26) * Pango.SCALE
+            tw = (CARD_W - CARD_BAND - 40) * Pango.SCALE
             tl = self.strip.create_pango_layout(title)
             tl.set_font_description(Pango.FontDescription("Sans Bold 10.5"))
             tl.set_width(tw)
             tl.set_ellipsize(Pango.EllipsizeMode.END)
-            bl = self.strip.create_pango_layout(body.strip("\n"))
+            body = body.strip("\n")
+            bl = self.strip.create_pango_layout(body)
             fam = FONTS[font][1]
             fd = Pango.FontDescription("Sans 10")
             if fam:
@@ -2040,9 +2219,28 @@ def run_gui(argv):
             bl.set_width(tw)
             bl.set_wrap(Pango.WrapMode.WORD_CHAR)
             bl.set_ellipsize(Pango.EllipsizeMode.END)
-            bl.set_height(-(max(1, (CARD_H - 80) // 16)))   # batas jumlah baris (+ baris info)
-            self._text_cache[n["id"]] = (key, tl, bl)
-            return tl, bl
+            # ☐/☑ di awal baris: sisakan tempat kosong, kotaknya digambar sendiri
+            boxes = []
+            fm = bl.get_context().get_metrics(fd, None)
+            asc = fm.get_ascent() / Pango.SCALE
+            sz = 11 if font != "hand" else 12
+            attrs = Pango.AttrList()
+            off = 0
+            for line in body.split("\n"):
+                m = re.match(r"^(\s*)(☐|☑)", line)
+                if m:
+                    start = off + len(m.group(1).encode())
+                    r = Pango.Rectangle()
+                    r.x, r.y = 0, int(-(asc * 0.5 + sz / 2) * Pango.SCALE)
+                    r.width, r.height = int((sz + 3) * Pango.SCALE), int(sz * Pango.SCALE)
+                    a = Pango.attr_shape_new(r, r)
+                    a.start_index, a.end_index = start, start + len(m.group(2).encode())
+                    attrs.insert(a)
+                    boxes.append((start, m.group(2) == "☑", sz))
+                off += len(line.encode()) + 1
+            bl.set_attributes(attrs)
+            self._text_cache[n["id"]] = (key, tl, bl, boxes)
+            return tl, bl, boxes
 
         def _card_info(self, n):
             parts = []
@@ -2052,23 +2250,28 @@ def run_gui(argv):
                 parts.append(n["group"].upper())
             done, total = checklist_progress(n["text"])
             if total:
-                parts.append(f"☑ {done}/{total}")
+                parts.append(f"✓ {done}/{total}")
             if n["images"]:
                 parts.append(f"🖼 {len(n['images'])}")
             return "  ·  ".join(parts)
 
         # ---------- geometri ----------
-        def rest_geom(self):
-            notes = store.tabs()
-            H = self._H()
-            n = max(1, len(notes))
+        def _rest_size(self, full):
+            """(tinggi garis, jarak, tinggi pil) — dihitung dari tinggi jendela PENUH,
+            supaya pil tidak ikut menciut saat jendela diam dikecilkan."""
+            n = max(1, len(store.tabs()))
             dh, dg = DASH_H, DASH_GAP
-            room = H - 16 - REST_PAD * 2
+            room = full - 16 - REST_PAD * 2
             if n * dh + (n - 1) * dg > room:      # banyak catatan: garis dipadatkan
                 unit = room / max(1, n * 1.5 - 0.5)
                 dh, dg = max(3.0, unit), max(1.5, unit * 0.5)
+            return dh, dg, REST_PAD * 2 + n * dh + (n - 1) * dg
+
+        def rest_geom(self):
+            notes = store.tabs()
+            H = self._H()
+            dh, dg, ph = self._rest_size(getattr(self, "_full_h", None) or H)
             self._dash_h = dh
-            ph = REST_PAD * 2 + n * dh + (n - 1) * dg
             top = (H - ph) / 2
             dashes = [(note, top + REST_PAD + i * (dh + dg)) for i, note in enumerate(notes)]
             return top, ph, dashes
@@ -2150,6 +2353,15 @@ def run_gui(argv):
             return tabs, (TAB_W / 2 + 2, plus_cy), (top, top + block)
 
         def _needed_h(self):
+            """Diam: setinggi pil saja (jendela tinggi menghalangi klik ke aplikasi di belakangnya,
+            karena di XWayland/Hyprland input shape tidak selalu dihormati). Terbuka: penuh."""
+            full = self._open_h()
+            self._full_h = full
+            if self.compact:
+                return int(min(full, self._rest_size(full)[2] + 24))
+            return full
+
+        def _open_h(self):
             """Tinggi jendela secukupnya: tumpukan tab + satu kartu terbuka + tombol."""
             notes = store.tabs()
             base = [self._base_h(n) for n in notes]
@@ -2159,6 +2371,21 @@ def run_gui(argv):
             extra = (PLUS_GAP if notes else 0) + PLUS_D + BTN_GAP + SET_D + self._filter_extra()
             wa = work_area()
             return int(max(180, min(stack + extra + 32, wa.height - 16)))
+
+        def _tilt_angle(self):
+            """Sudut kartu (derajat) selama animasi masuk: miring, lalu lurus dalam beberapa
+            hentakan pendek (tek-tek-tek) dengan sedikit pantulan di akhir."""
+            t = self.tilt_anim.value * TILT_MS
+            if t >= TILT_MS:
+                return 0.0
+            prev_a = TILT_KEYS[0][1]
+            for at, ang in TILT_KEYS:
+                if t < at:
+                    k = min(1.0, max(0.0, (t - (at - TILT_SNAP_MS)) / TILT_SNAP_MS))
+                    k = 1 - (1 - k) ** 3
+                    return prev_a + (ang - prev_a) * k
+                prev_a = ang
+            return 0.0
 
         def _inner(self, i, e, hov=False):
             """Lebar bentuk (dari tepi layar): tab → kartu."""
@@ -2283,6 +2510,14 @@ def run_gui(argv):
                 if p <= 0:
                     continue
                 hov = i == self.hover_idx or lifted
+                tilt = self._tilt_angle() if (n["id"] == self.slot_cur and e > 0.001) else 0.0
+                cr.save()
+                if tilt:
+                    # engsel di tepi layar: kartu masuk miring lalu "patah-patah" jadi lurus
+                    px = W if right else 0
+                    cr.translate(px, y + h / 2)
+                    cr.rotate(math.radians(tilt if right else -tilt))
+                    cr.translate(-px, -(y + h / 2))
                 inner = self._inner(i, e, hov) + (8 if lifted else 0)
                 slide = (1 - p) * (inner + 8)
                 ins = inner - slide + self._shake(n["id"]) * (1 - e)
@@ -2355,7 +2590,8 @@ def run_gui(argv):
                 # isi kartu memudar masuk di paruh kedua animasi
                 ta = max(0.0, (e - 0.45) / 0.55) * p
                 if ta > 0.01:
-                    tl, bl = self._card_text(n)
+                    tl, bl, boxes = self._card_text(n)
+                    info = self._card_info(n)
                     cr.save()
                     rrect(cr, x, y, wd, h, radius)
                     cr.clip()
@@ -2367,11 +2603,32 @@ def run_gui(argv):
                     PangoCairo.show_layout(cr, tl)
                     cr.new_path()  # buang titik sisa supaya tidak ada garis nyasar
                     _tw, th = tl.get_pixel_size()
-                    cr.set_source_rgba(*((0.88, 0.88, 0.88) if dark else (0.18, 0.18, 0.18)), ta)
-                    cr.move_to(tx0, y + 16 + th)
+                    by = y + 16 + th
+                    # isi berhenti sebelum baris info, jadi tidak pernah menimpa "☑ 8/10"
+                    room = max(16, int(h - (by - y) - (30 if info else 12)))
+                    if bl.get_height() != room * Pango.SCALE:
+                        bl.set_height(room * Pango.SCALE)
+                    body_ink = (0.88, 0.88, 0.88) if dark else (0.18, 0.18, 0.18)
+                    cr.set_source_rgba(*body_ink, ta)
+                    cr.move_to(tx0, by)
                     PangoCairo.show_layout(cr, bl)
                     cr.new_path()  # buang titik sisa supaya tidak ada garis nyasar
-                    info = self._card_info(n)
+                    bg = note_rgb(n["color"])
+                    # isi terpotong "…": kotak sesudah awal baris terakhir yang tampil tersembunyi
+                    # (Pango melaporkan posisinya di baris pertama — dulu jadi kotak nyasar di atas)
+                    last = bl.get_line_readonly(bl.get_line_count() - 1)
+                    shown_end = last.start_index + last.length
+                    for idx, checked, sz in boxes:
+                        r = bl.index_to_pos(idx)
+                        # item yang tidak muat dibuang Pango dan dilaporkan di (x, 0) dengan tinggi 0
+                        if idx >= shown_end or r.height <= 0:
+                            break
+                        ly = r.y / Pango.SCALE
+                        if ly + r.height / Pango.SCALE > room + 1:
+                            break
+                        draw_checkbox(cr, tx0 + r.x / Pango.SCALE + sz / 2,
+                                      by + ly + r.height / Pango.SCALE / 2, sz,
+                                      checked, body_ink, bg, alpha=ta)
                     if info:
                         il = self._make_label(info, CARD_W - CARD_BAND - 30)
                         cr.set_source_rgba(*ink, 0.5 * ta)
@@ -2379,6 +2636,7 @@ def run_gui(argv):
                         PangoCairo.show_layout(cr, il)
                         cr.new_path()
                     cr.restore()
+                cr.restore()
 
             pp = self._tab_p(len(tabs))
             if pp > 0:
@@ -2665,6 +2923,8 @@ def run_gui(argv):
                 self.slot_cur = nid
                 self.slot_anim.set(0.0)
                 self.slot_anim.to(1.0, CARD_GROW_MS)
+                self.tilt_anim.set(0.0)
+                self.tilt_anim.to(1.0, TILT_MS)
             self.mode = "peek"
             self.strip.queue_draw()
 
@@ -2869,9 +3129,11 @@ def run_gui(argv):
             # --- isi
             self.editor = NoteEditor(ctl, "window", title_getter=lambda: self.title.get_text(),
                                      title_setter=lambda t: self.title.set_text(t))
-            self.editor.set_margin_start(16)
+            # sebagian margin dipindah ke dalam TextView (lihat NoteEditor): posisi teks sama,
+            # tapi halo/animasi kotak checklist punya ruang dan tidak terpotong
+            self.editor.set_margin_start(16 - NoteEditor.BOX_ROOM_X)
             self.editor.set_margin_end(12)
-            self.editor.set_margin_top(10)
+            self.editor.set_margin_top(10 - NoteEditor.BOX_ROOM_Y)
             box.pack_start(self.editor, True, True, 0)
 
             # --- gambar yang ditempel (Ctrl+V)
@@ -2954,7 +3216,7 @@ def run_gui(argv):
         def refresh_progress(self):
             n = store.get(self.nid)
             done, total = checklist_progress(n["text"]) if n else (0, 0)
-            self.progress.set_text(f"☑ {done}/{total}" if total else "")
+            self.progress.set_text(f"✓ {done}/{total}" if total else "")
 
         # ---- gambar ----
         def _build_images(self, n):

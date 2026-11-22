@@ -28,6 +28,9 @@ fi
 T=$(mktemp -d)
 # Di sesi D-Bus terpisah tidak ada layanan portal; tanpa ini GTK menunggu ~25 detik saat start.
 export GTK_USE_PORTAL=0 NO_AT_BRIDGE=1 GIO_USE_PORTALS=0
+# Skala HiDPI dari desktop (mis. GDK_SCALE=2 di Omarchy) jangan ikut ke layar virtual: semua crop
+# di bawah memakai koordinat skala 1.
+export GDK_SCALE=1 GDK_DPI_SCALE=1
 export XDG_DATA_HOME=$T/data XDG_CONFIG_HOME=$T/cfg XDG_RUNTIME_DIR=$T/run XDG_CACHE_HOME=$T/cache
 mkdir -p "$XDG_DATA_HOME/edgenotes" "$XDG_CONFIG_HOME" "$XDG_RUNTIME_DIR" "$XDG_CACHE_HOME" "$OUT"
 chmod 700 "$XDG_RUNTIME_DIR"
