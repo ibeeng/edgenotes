@@ -64,13 +64,14 @@ EdgeNotes adalah perangkat lunak bebas di bawah **GNU GPL v3 atau lebih baru** (
 Semua fitur gratis dan tidak ada masa coba. Sejak 4.2 kode lisensi berbayar dan semua koneksi internet
 (termasuk cek versi) sudah dihapus.
 
-Kalau EdgeNotes berguna buatmu, kamu bisa mendukung pengembangannya lewat **QRIS** (semua bank dan
-e-wallet: GoPay, OVO, DANA, ShopeePay, m-banking). Nominal bebas. Di aplikasi: klik kanan strip →
-*Dukung pengembang ♥*, atau `edgenotes --support`.
+Kalau suka, kasih bintang di repositori ini sudah cukup. Kalau mau ikut dukung, ada menu *Dukung pengembang*
+di klik kanan strip.
 
-<img src="data/qris.jpg" alt="QRIS donasi" width="280">
-
-Atau cukup **beri bintang** repositori ini dan ceritakan ke temanmu.
+## Baru di 4.3.1
+- **Tema gelap lebih bersih.** Warna kartu lebih dalam (tidak cokelat butek lagi), plus aksen pastel tipis di jendela catatan.
+- **Checklist digambar sendiri.** Dulu ☑ sering tampil sebagai emoji biru. Sekarang kotaknya seragam di semua distro, kursor jadi pointer, area klik lebih lebar, ada animasi hover dan saat dicentang, dan item yang selesai diredupkan.
+- **Kartu intip** masuk miring lalu lurus dalam beberapa hentakan. Checklist panjang tidak lagi menimpa baris progres.
+- **Perbaikan:** saat diam, jendela strip cuma setinggi pil, jadi tidak lagi menghalangi klik di tepi layar (Hyprland/XWayland).
 
 ## Baru di 4.3
 - **Dukungan Omarchy / Hyprland.** Sebelumnya strip di-tile di tengah layar seperti jendela biasa. Sekarang:

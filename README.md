@@ -139,14 +139,8 @@ shadow, blur or rounding, and pin the window titled `EdgeNotes Strip` so it show
 
 ## Support
 
-EdgeNotes is free. If it is useful to you, you can support its development:
-
-- **Indonesia, QRIS** (any bank or e-wallet: GoPay, OVO, DANA, ShopeePay, mobile banking). Any amount.
-  Also in the app: right-click the strip → *Support the developer ♥*, or `edgenotes --support`.
-
-  <img src="data/qris.jpg" alt="QRIS donation code" width="280">
-
-- Or just **star the repository** and tell a friend.
+EdgeNotes is free. If you like it, a star on the repository is plenty. If you want to chip in, there is a
+*Support the developer* item in the strip's right-click menu.
 
 ## License
 
